@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
-	"encoding/base32"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 )
+
+const length = 8
 
 type Service interface {
 	Create(ctx context.Context, url string) (string, error)
@@ -23,10 +26,13 @@ func NewService(repo URLRepository, cache URLCache) Service {
 }
 
 func (s *service) Create(ctx context.Context, url string) (code string, err error) {
-	hashed := hashUrl(url)
-	fmt.Println("Hashed url: ", hashed)
+	code, err = generateCode(length)
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(code)
 
-	code, err = s.repo.Create(ctx, hashed)
+	code, err = s.repo.Create(ctx, code, url)
 	if err != nil {
 		return "", err
 	}
@@ -38,7 +44,18 @@ func (s *service) Create(ctx context.Context, url string) (code string, err erro
 	return code, nil
 }
 
-func hashUrl(url string) (hashed string) {
-	hashed = base32.StdEncoding.EncodeToString([]byte(url))
-	return hashed
+func generateCode(length int) (string, error) {
+	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	code := make([]byte, length)
+	for i := range code {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
+		if err != nil {
+			return "", err
+		}
+
+		code[i] = alphabet[n.Int64()]
+	}
+
+	return string(code), nil
 }
