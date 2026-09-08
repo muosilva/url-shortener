@@ -3,7 +3,7 @@ package service
 import "context"
 
 type URLRepository interface {
-	Create(ctx context.Context, generatedCode, long_url string) (string, error)
+	Create(ctx context.Context, generatedCode, long_url string) error
 }
 
 type URLCache interface {

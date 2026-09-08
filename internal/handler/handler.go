@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/muosilva/url-shortener/internal/domain"
@@ -47,6 +48,8 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	fmt.Println("Handler Code: ", code)
+	fmt.Println("Handler Code Size: ", len(code))
 
 	resp := domain.JSONResponse{
 		Msg:        "Created successfully!",

@@ -30,9 +30,9 @@ func (s *service) Create(ctx context.Context, url string) (code string, err erro
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(code)
+	fmt.Println("Service Code: ", code)
 
-	code, err = s.repo.Create(ctx, code, url)
+	err = s.repo.Create(ctx, code, url)
 	if err != nil {
 		return "", err
 	}

@@ -10,12 +10,10 @@ type CreateURLRequest struct {
 }
 
 type JSONResponse struct {
-	Msg        string
-	StatusCode int
-	Code       string
+	Msg        string `json:"message"`
+	StatusCode int    `json:"status_code"`
+	Code       string `json:"code,omitempty"`
 }
-
-//https://redis.io/docs/latest/develop/clients/go/
 
 func (cr *CreateURLRequest) Validation(url string) (err error) {
 	if len(url) == 0 {

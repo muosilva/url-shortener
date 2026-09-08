@@ -15,7 +15,7 @@ func NewPostgresURLRepository(db *sql.DB) *PostgresURLRepository {
 	}
 }
 
-func (r *PostgresURLRepository) Create(ctx context.Context, generateCode, long_url string) (code string, err error) {
+func (r *PostgresURLRepository) Create(ctx context.Context, generateCode, long_url string) (err error) {
 	_, err = r.db.ExecContext(
 		ctx,
 		`INSERT INTO urls (code, long_url) VALUES ($1, $2)`,
@@ -23,8 +23,8 @@ func (r *PostgresURLRepository) Create(ctx context.Context, generateCode, long_u
 		long_url,
 	)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	return code, nil
+	return nil
 }

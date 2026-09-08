@@ -2,9 +2,12 @@ package redis
 
 import (
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+const cacheTTL = 5 * time.Minute
 
 type RedisURLCache struct {
 	client *redis.Client
@@ -21,5 +24,5 @@ func (c *RedisURLCache) Get(ctx context.Context, code string) (string, error) {
 }
 
 func (c *RedisURLCache) Set(ctx context.Context, code string, longURL string) error {
-	return c.client.Set(ctx, code, longURL, 5).Err()
+	return c.client.Set(ctx, code, longURL, cacheTTL).Err()
 }
