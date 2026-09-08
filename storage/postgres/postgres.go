@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type PostgresURLRepository struct {
@@ -27,4 +28,17 @@ func (r *PostgresURLRepository) Create(ctx context.Context, generateCode, long_u
 	}
 
 	return nil
+}
+
+func (r *PostgresURLRepository) GetByCode(ctx context.Context, code string) (longUrl string, err error) {
+	err = r.db.QueryRowContext(ctx, `SELECT long_url FROM urls WHERE code = $1`, code).Scan(&longUrl)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+
+		return "", err
+	}
+
+	return longUrl, nil
 }

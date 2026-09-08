@@ -3,14 +3,18 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"math/big"
 )
 
 const length = 8
 
+var ErrURLNotFound = errors.New("url not found")
+
 type Service interface {
 	Create(ctx context.Context, url string) (string, error)
+	Get(ctx context.Context, code string) (string, error)
 }
 
 type service struct {
@@ -42,6 +46,33 @@ func (s *service) Create(ctx context.Context, url string) (code string, err erro
 	}
 
 	return code, nil
+}
+
+func (s *service) Get(ctx context.Context, code string) (longUrl string, err error) {
+	if len(code) == 0 || code == "" {
+		err = errors.New("code is empty!")
+		return "", err
+	}
+
+	longUrl, err = s.cache.Get(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	if longUrl != "" {
+		return longUrl, nil
+	}
+
+	longUrl, err = s.repo.GetByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	if longUrl == "" {
+		return "", ErrURLNotFound
+	}
+
+	_ = s.cache.Set(ctx, code, longUrl)
+
+	return longUrl, nil
 }
 
 func generateCode(length int) (string, error) {
