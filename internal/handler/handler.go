@@ -51,6 +51,8 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Handler Code: ", code)
 	fmt.Println("Handler Code Size: ", len(code))
 
+	code = "http://localhost:8080/" + code
+
 	resp := domain.JSONResponse{
 		Msg:        "Created successfully!",
 		StatusCode: 201,
