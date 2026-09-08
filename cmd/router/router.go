@@ -20,6 +20,8 @@ func New(h *handler.Handler) http.Handler {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
+	r.Get("/{code}", h.RedirectToOriginalURL)
+
 	r.Route("/urls", func(r chi.Router) {
 		r.Post("/", h.CreateURL)
 	})
