@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/muosilva/url-shortener/internal/domain"
@@ -27,6 +28,8 @@ func NewHandler(svc service.Service) *Handler {
 }
 
 func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	var req domain.CreateURLRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)
@@ -69,6 +72,7 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("url created")
 	writeJSON(w, resp)
+	metrics.CreateURLDuration.Observe(time.Since(start).Seconds())
 }
 
 func (h *Handler) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request) {

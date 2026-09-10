@@ -10,7 +10,7 @@ HTTP_ADDR ?= :8080
 DATABASE_URL ?= postgres://url_shortener:url_shortener@localhost:5432/url_shortener?sslmode=disable
 REDIS_ADDR ?= localhost:6379
 
-.PHONY: help fmt tidy test build run dev install-air clean infra-up infra-down api-up api-down logs ps compose-config db-shell redis-cli
+.PHONY: help fmt tidy test build run dev dev-local up down install-air clean infra-up infra-down api-up api-down logs ps compose-config db-shell redis-cli
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -31,7 +31,12 @@ build: ## Build the API binary
 run: ## Run the API locally
 	GOCACHE=$(GOCACHE) HTTP_ADDR="$(HTTP_ADDR)" DATABASE_URL="$(DATABASE_URL)" REDIS_ADDR="$(REDIS_ADDR)" $(GO) run ./cmd/api
 
-dev: infra-up ## Run the API locally with Air live reload
+dev: ## Start the full dev stack with Air, observability, Postgres, and Redis
+	$(DOCKER_COMPOSE) --profile dev up --build
+
+up: dev ## Alias for dev
+
+dev-local: infra-up ## Run the API locally with Air live reload
 	GOCACHE=$(GOCACHE) HTTP_ADDR="$(HTTP_ADDR)" DATABASE_URL="$(DATABASE_URL)" REDIS_ADDR="$(REDIS_ADDR)" $(AIR) -c .air.toml
 
 install-air: ## Install Air globally into GOPATH/bin
@@ -46,7 +51,10 @@ infra-up: ## Start Postgres and Redis
 infra-down: ## Stop and remove Compose services
 	$(DOCKER_COMPOSE) down
 
-api-up: ## Start Postgres, Redis, and API
+down: ## Stop and remove Compose services
+	$(DOCKER_COMPOSE) down --remove-orphans
+
+api-up: ## Start Postgres, Redis, observability, and the API container
 	$(DOCKER_COMPOSE) --profile api up --build
 
 api-down: ## Stop and remove Compose services including API
@@ -58,8 +66,8 @@ logs: ## Follow Compose logs
 ps: ## Show Compose service status
 	$(DOCKER_COMPOSE) ps
 
-compose-config: ## Validate Compose configuration
-	$(DOCKER_COMPOSE) --profile api config
+compose-config: ## Validate the dev Compose configuration
+	$(DOCKER_COMPOSE) --profile dev config
 
 db-shell: ## Open a psql shell in Postgres
 	$(DOCKER_COMPOSE) exec postgres psql -U url_shortener -d url_shortener

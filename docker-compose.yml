@@ -53,7 +53,38 @@ services:
     networks:
       obs-network:
         aliases:
+          - go-app
           - url_shortener
+
+  api-dev:
+    profiles:
+      - dev
+    image: golang:1.26-alpine
+    working_dir: /src
+    environment:
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: "postgres://url_shortener:url_shortener@postgres:5432/url_shortener?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+      GOCACHE: "/go-cache"
+      GOMODCACHE: "/go/pkg/mod"
+      CGO_ENABLED: "0"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/src
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/go-cache
+      - air_tmp:/src/tmp
+    command: ["sh", "-c", "go run github.com/air-verse/air@latest -c .air.toml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      obs-network:
+        aliases:
+          - go-app
 
   # 1. Grafana for Visualizations
   
@@ -113,6 +144,9 @@ volumes:
   postgres_data:
   redis_data:
   grafana-storage:
+  go_mod_cache:
+  go_build_cache:
+  air_tmp:
 
 networks:
   obs-network:
