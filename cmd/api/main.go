@@ -11,6 +11,7 @@ import (
 	apirouter "github.com/muosilva/url-shortener/cmd/router"
 	"github.com/muosilva/url-shortener/internal/handler"
 	"github.com/muosilva/url-shortener/internal/service"
+	"github.com/muosilva/url-shortener/metrics"
 	"github.com/muosilva/url-shortener/storage/postgres"
 	rediscache "github.com/muosilva/url-shortener/storage/redis"
 
@@ -33,6 +34,7 @@ func run() error {
 		return err
 	}
 	defer db.Close()
+	metrics.RegisterDBStats(db)
 
 	redisClient := openRedis()
 	defer redisClient.Close()

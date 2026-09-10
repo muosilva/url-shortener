@@ -29,11 +29,16 @@ func NewHandler(svc service.Service) *Handler {
 
 func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	result := metrics.ResultSuccess
+	defer func() {
+		metrics.ObserveCreateURL(result, time.Since(start))
+	}()
 
 	var req domain.CreateURLRequest
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		result = metrics.ResultError
 		slog.Error("failed to decode request body", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        "Invalid JSON body",
@@ -44,6 +49,7 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	err = req.Validation(req.Url)
 	if err != nil {
+		result = metrics.ResultError
 		slog.Error("validation error", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        err.Error(),
@@ -54,6 +60,7 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	code, err := h.service.Create(r.Context(), req.Url)
 	if err != nil {
+		result = metrics.ResultError
 		slog.Error("failed to create short url", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        "Failed to create short URL",
@@ -61,8 +68,6 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	metrics.URLsCreatedTotal.Inc()
 
 	resp := domain.JSONResponse{
 		Msg:        "Created successfully!",
@@ -72,10 +77,14 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("url created")
 	writeJSON(w, resp)
-	metrics.CreateURLDuration.Observe(time.Since(start).Seconds())
 }
 
 func (h *Handler) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request) {
+	result := metrics.ResultSuccess
+	defer func() {
+		metrics.RedirectsTotal.WithLabelValues(result).Inc()
+	}()
+
 	code := chi.URLParam(r, "code")
 
 	originalUrl, err := h.service.Get(r.Context(), code)
@@ -86,6 +95,9 @@ func (h *Handler) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request) 
 		if errors.Is(err, service.ErrURLNotFound) {
 			statusCode = http.StatusNotFound
 			msg = "URL not found"
+			result = metrics.ResultNotFound
+		} else {
+			result = metrics.ResultError
 		}
 
 		writeJSON(w, domain.JSONResponse{

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+
+	"github.com/muosilva/url-shortener/metrics"
 )
 
 const length = 8
@@ -45,17 +47,26 @@ func (s *service) Create(ctx context.Context, url string) (code string, err erro
 		return "", err
 	}
 
+	metrics.URLsCreatedTotal.Inc()
+
 	return code, nil
 }
 
 func (s *service) Get(ctx context.Context, code string) (longUrl string, err error) {
+	result := metrics.ResultSuccess
+	defer func() {
+		metrics.URLLookupTotal.WithLabelValues(result).Inc()
+	}()
+
 	if len(code) == 0 || code == "" {
 		err = errors.New("code is empty!")
+		result = metrics.ResultError
 		return "", err
 	}
 
 	longUrl, err = s.cache.Get(ctx, code)
 	if err != nil {
+		result = metrics.ResultError
 		return "", err
 	}
 	if longUrl != "" {
@@ -64,9 +75,11 @@ func (s *service) Get(ctx context.Context, code string) (longUrl string, err err
 
 	longUrl, err = s.repo.GetByCode(ctx, code)
 	if err != nil {
+		result = metrics.ResultError
 		return "", err
 	}
 	if longUrl == "" {
+		result = metrics.ResultNotFound
 		return "", ErrURLNotFound
 	}
 
