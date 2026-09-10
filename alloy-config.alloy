@@ -1,0 +1,29 @@
+// --- METRICS PIPELINE ---
+prometheus.scrape "go_app" {
+  targets = [
+    {"__address__" = "go-app:8080"},
+  ]
+  forward_to = [prometheus.remote_write.local_prom.receiver]
+}
+
+prometheus.remote_write "local_prom" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// --- LOGS PIPELINE ---
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "app_logs" {
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.write.local_loki.receiver]
+}
+
+loki.write "local_loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

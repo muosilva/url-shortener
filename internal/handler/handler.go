@@ -3,12 +3,17 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/muosilva/url-shortener/internal/domain"
 	"github.com/muosilva/url-shortener/internal/service"
+	"github.com/muosilva/url-shortener/metrics"
+)
+
+const (
+	dm = "http://localhost:8080/"
 )
 
 type Handler struct {
@@ -26,6 +31,7 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		slog.Error("failed to decode request body", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        "Invalid JSON body",
 			StatusCode: http.StatusBadRequest,
@@ -35,6 +41,7 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	err = req.Validation(req.Url)
 	if err != nil {
+		slog.Error("validation error", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        err.Error(),
 			StatusCode: http.StatusBadRequest,
@@ -44,23 +51,23 @@ func (h *Handler) CreateURL(w http.ResponseWriter, r *http.Request) {
 
 	code, err := h.service.Create(r.Context(), req.Url)
 	if err != nil {
+		slog.Error("failed to create short url", "error", err)
 		writeJSON(w, domain.JSONResponse{
 			Msg:        "Failed to create short URL",
 			StatusCode: http.StatusInternalServerError,
 		})
 		return
 	}
-	fmt.Println("Handler Code: ", code)
-	fmt.Println("Handler Code Size: ", len(code))
 
-	code = "http://localhost:8080/" + code
+	metrics.URLsCreatedTotal.Inc()
 
 	resp := domain.JSONResponse{
 		Msg:        "Created successfully!",
 		StatusCode: http.StatusCreated,
-		Url:        code,
+		Url:        dm + code,
 	}
 
+	slog.Info("url created")
 	writeJSON(w, resp)
 }
 

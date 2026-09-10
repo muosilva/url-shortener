@@ -15,6 +15,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - obs-network
 
   redis:
     image: redis:7-alpine
@@ -28,6 +30,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - obs-network
 
   api:
     profiles:
@@ -46,7 +50,70 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      obs-network:
+        aliases:
+          - url_shortener
+
+  # 1. Grafana for Visualizations
+  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-local
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - obs-network
+
+  # 2. Prometheus for Metrics Backend
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-local
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    networks:
+      - obs-network
+
+  # 3. Loki for Logs Backend
+  loki:
+    image: grafana/loki:latest
+    container_name: loki-local
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - obs-network
+
+  # 4. Grafana Alloy (Collector for scraping metrics/logs)
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy-local
+    ports:
+      - "12345:12345" # Alloy UI
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # To collect Docker logs
+    command: run --storage.path=/tmp/alloy-data /etc/alloy/config.alloy
+    networks:
+      - obs-network
+    depends_on:
+      - prometheus
+      - loki
 
 volumes:
   postgres_data:
   redis_data:
+  grafana-storage:
+
+networks:
+  obs-network:
+    driver: bridge
