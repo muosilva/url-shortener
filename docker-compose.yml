@@ -15,6 +15,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - obs-network
 
   redis:
     image: redis:7-alpine
@@ -28,6 +30,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - obs-network
 
   api:
     profiles:
@@ -46,7 +50,123 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      obs-network:
+        aliases:
+          - go-app
+          - url_shortener
+
+  api-dev:
+    profiles:
+      - dev
+    image: golang:1.26-alpine
+    working_dir: /src
+    environment:
+      HTTP_ADDR: ":8080"
+      DATABASE_URL: "postgres://url_shortener:url_shortener@postgres:5432/url_shortener?sslmode=disable"
+      REDIS_ADDR: "redis:6379"
+      GOCACHE: "/go-cache"
+      GOMODCACHE: "/go/pkg/mod"
+      CGO_ENABLED: "0"
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/src
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/go-cache
+      - air_tmp:/src/tmp
+    command: ["sh", "-c", "go run github.com/air-verse/air@latest -c .air.toml"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      obs-network:
+        aliases:
+          - go-app
+
+  # 1. Grafana for Visualizations
+  
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-local
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - obs-network
+
+  # 2. Prometheus for Metrics Backend
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-local
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    networks:
+      - obs-network
+
+  # 3. Loki for Logs Backend
+  loki:
+    image: grafana/loki:latest
+    container_name: loki-local
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - obs-network
+
+  # 4. Grafana Alloy (Collector for scraping metrics/logs)
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy-local
+    ports:
+      - "12345:12345" # Alloy UI
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # To collect Docker logs
+    command: run --storage.path=/tmp/alloy-data /etc/alloy/config.alloy
+    networks:
+      - obs-network
+    depends_on:
+      - prometheus
+      - loki
+
+  k6:
+    profiles:
+      - loadtest
+    image: grafana/k6:latest
+    environment:
+      BASE_URL: "http://go-app:8080"
+      RATE: "${K6_RATE:-2}"
+      DURATION: "${K6_DURATION:-1m}"
+      PRE_ALLOCATED_VUS: "${K6_PRE_ALLOCATED_VUS:-4}"
+      MAX_VUS: "${K6_MAX_VUS:-8}"
+    volumes:
+      - ./loadtest/k6:/scripts:ro
+    command: ["run", "/scripts/url-shortener.js"]
+    networks:
+      - obs-network
+    depends_on:
+      api-dev:
+        condition: service_started
 
 volumes:
   postgres_data:
   redis_data:
+  grafana-storage:
+  go_mod_cache:
+  go_build_cache:
+  air_tmp:
+
+networks:
+  obs-network:
+    driver: bridge
