@@ -59,10 +59,33 @@ curl -X POST http://localhost:8080/urls/ \
   -d '{"url":"https://example.com"}'
 ```
 
+## Load Test
+
+Run a small k6 load test:
+
+```bash
+make load-test
+```
+
+Default load:
+
+```text
+2 iterations/second for 1 minute
+```
+
+Each iteration creates one short URL and then requests the generated short URL without following the external redirect.
+
+Increase load gradually:
+
+```bash
+make load-test K6_RATE=5 K6_DURATION=2m K6_MAX_VUS=12
+```
+
 ## Useful Commands
 
 ```bash
 make test
+make load-test
 make logs
 make ps
 make compose-config

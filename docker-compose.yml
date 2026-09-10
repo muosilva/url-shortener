@@ -140,6 +140,25 @@ services:
       - prometheus
       - loki
 
+  k6:
+    profiles:
+      - loadtest
+    image: grafana/k6:latest
+    environment:
+      BASE_URL: "http://go-app:8080"
+      RATE: "${K6_RATE:-2}"
+      DURATION: "${K6_DURATION:-1m}"
+      PRE_ALLOCATED_VUS: "${K6_PRE_ALLOCATED_VUS:-4}"
+      MAX_VUS: "${K6_MAX_VUS:-8}"
+    volumes:
+      - ./loadtest/k6:/scripts:ro
+    command: ["run", "/scripts/url-shortener.js"]
+    networks:
+      - obs-network
+    depends_on:
+      api-dev:
+        condition: service_started
+
 volumes:
   postgres_data:
   redis_data:
