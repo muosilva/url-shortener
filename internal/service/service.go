@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/muosilva/url-shortener/metrics"
@@ -36,7 +35,6 @@ func (s *service) Create(ctx context.Context, url string) (code string, err erro
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("Service Code: ", code)
 
 	err = s.repo.Create(ctx, code, url)
 	if err != nil {
